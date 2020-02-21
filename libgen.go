@@ -20,7 +20,11 @@ const downloadURL = baseURL + "get.php?md5="
 
 //SearchBookByTitle returns the list of BookInfo which contains the search string
 func SearchBookByTitle(searchStr string) []BookInfo {
-	doc, err := getDocument(searchStr)
+	// URL encode given search string
+	value := url.Values{"req": {searchStr}}
+	requestURL := searchURL + value.Encode()
+
+	doc, err := getDocument(requestURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,15 +78,14 @@ func FindBooksByIds(ids string) ([]BookInfo, error) {
 	return books, nil
 }
 
-//TODO: need to rename or completely refactor this method
-func getDocument(title string) (*goquery.Document, error) {
-	value := url.Values{"req": {title}}
-	requestURL := searchURL + value.Encode()
+//returns goquery.Document build from given url
+func getDocument(requestURL string) (*goquery.Document, error) {
 	res, err := http.Get(requestURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer res.Body.Close()
+
 	if res.StatusCode != 200 {
 		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
 	}
