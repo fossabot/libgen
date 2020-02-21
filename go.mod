@@ -1,4 +1,4 @@
-module github.com/binodsh/anybooks
+module github.com/binodsh/libgen
 
 go 1.13
 
