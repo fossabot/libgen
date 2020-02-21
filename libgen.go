@@ -18,8 +18,9 @@ const jsonURL = baseURL + "json.php?fields=id,author,title,md5,year,extension,fi
 
 const downloadURL = baseURL + "get.php?md5="
 
-func SearchBookByTitle(title string) []BookInfo {
-	doc, err := getDocument(title)
+//SearchBookByTitle returns the list of BookInfo which contains the search string
+func SearchBookByTitle(searchStr string) []BookInfo {
+	doc, err := getDocument(searchStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,10 +28,9 @@ func SearchBookByTitle(title string) []BookInfo {
 	var ids string
 
 	doc.Find(".c > tbody:nth-child(1) > tr").Each(func(i int, s *goquery.Selection) {
-		// For each item found, get the band and title
-
+		//reach to id column
 		id := s.Find("td:nth-child(1)").Text()
-
+		//make csv of ids
 		ids += id + ","
 	})
 
@@ -39,7 +39,7 @@ func SearchBookByTitle(title string) []BookInfo {
 		return []BookInfo{}
 	}
 
-	books, err := findBooksByIds(ids)
+	books, err := FindBooksByIds(ids)
 
 	if err != nil {
 		return []BookInfo{}
@@ -52,7 +52,7 @@ func SearchBookByTitle(title string) []BookInfo {
 	return books
 }
 
-func findBooksByIds(ids string) ([]BookInfo, error) {
+func FindBooksByIds(ids string) ([]BookInfo, error) {
 	requestURL := jsonURL + "ids=" + ids
 	res, err := http.Get(requestURL)
 
@@ -74,6 +74,7 @@ func findBooksByIds(ids string) ([]BookInfo, error) {
 	return books, nil
 }
 
+//TODO: need to rename or completely refactor this method
 func getDocument(title string) (*goquery.Document, error) {
 	value := url.Values{"req": {title}}
 	requestURL := searchURL + value.Encode()
