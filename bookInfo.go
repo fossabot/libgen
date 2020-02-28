@@ -1,7 +1,7 @@
 package libgen
 
 type BookInfo struct {
-	ID               string `json:"id"`               //—the LibGen ID
+	ID               int64  `json:"id,string"`        //—the LibGen ID
 	Title            string `json:"title"`            //—the title of the text
 	VolumeInfo       string `json:"volumeinfo"`       //—the volume number, if the text is part of a multi-volume series
 	Series           string `json:"series"`           //—the series that the text is part of

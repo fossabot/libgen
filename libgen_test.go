@@ -6,10 +6,9 @@ import (
 )
 
 func TestAbs(t *testing.T) {
-	books := SearchBookByTitle("attitude is", "")
+	books := SearchBookByTitle("attitude is", SortOptions{SortBy: "title", SortMode: "desc"})
 
 	for _, book := range books {
-		fmt.Println(book)
-		fmt.Println()
+		fmt.Printf("id:%d\nauthor:%s\ntitle:%s\n\n", book.ID, book.Author, book.Title)
 	}
 }
