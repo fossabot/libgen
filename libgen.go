@@ -2,6 +2,7 @@ package libgen
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,14 +15,13 @@ import (
 
 const baseURL = "http://libgen.is/"
 
+const mirror2BaseURL = "http://libgen.lc/"
+
 const searchURL = baseURL + "search.php?lg_topic=libgen&open=0&view=simple&res=100&phrase=1&column=def&"
 
 const jsonURL = baseURL + "json.php"
 
-const downloadURL = baseURL + "get.php"
-
-const defaultSortBy = "def"
-const defaultSortMode = "asc"
+const downloadURL = mirror2BaseURL + "ads.php"
 
 type SortOptions struct {
 	SortBy   string
@@ -29,7 +29,7 @@ type SortOptions struct {
 }
 
 //SearchBookByTitle returns the list of BookInfo which contains the search string
-func SearchBookByTitle(searchStr string, sortOptions SortOptions) []BookInfo {
+func SearchBookByTitle(searchStr string, sortOptions SortOptions) ([]BookInfo, error) {
 	sortBy := sortOptions.SortBy
 	sortMode := strings.ToUpper(sortOptions.SortMode)
 
@@ -38,15 +38,14 @@ func SearchBookByTitle(searchStr string, sortOptions SortOptions) []BookInfo {
 	requestURL := searchURL + values.Encode()
 
 	ids := scrapBookIdsFromSite(requestURL)
-	books, err := FindBooksByIds(listToCSV(ids))
+	books, err := FindBooksByIds(ids)
 
 	if err != nil {
-		fmt.Println(err.Error())
-		return []BookInfo{}
+		return []BookInfo{}, err
 	}
 
 	for i, book := range books {
-		books[i].DownloadLink = downloadURL + "?md5=" + book.MD5
+		books[i].DownloadPageUrl = downloadURL + "?md5=" + book.MD5
 	}
 
 	//find books by id always returns the result sorted by ID in asc
@@ -61,12 +60,18 @@ func SearchBookByTitle(searchStr string, sortOptions SortOptions) []BookInfo {
 		}
 	}
 
-	return sortedBooks
+	return sortedBooks, nil
 }
 
-func FindBooksByIds(ids string) ([]BookInfo, error) {
-	fmt.Println("ids: " + ids)
-	params := url.Values{"ids": {ids}, "fields": {"*"}}
+func FindBooksByIds(ids []int64) ([]BookInfo, error) {
+	if len(ids) == 0 {
+		return []BookInfo{}, nil
+	}
+
+	idsCSV := listToCSV(ids)
+
+	fmt.Println("ids: " + idsCSV)
+	params := url.Values{"ids": {idsCSV}, "fields": {"*"}}
 
 	requestURL := jsonURL + "?" + params.Encode()
 
@@ -91,6 +96,36 @@ func FindBooksByIds(ids string) ([]BookInfo, error) {
 	return books, nil
 }
 
+func GetDownloadInfo(bookID int64) (DownloadInfo, error) {
+	books, err := FindBooksByIds([]int64{bookID})
+
+	if err != nil {
+		return DownloadInfo{}, err
+	}
+
+	if len(books) == 0 {
+		return DownloadInfo{}, errors.New("book not found")
+	}
+
+	book := books[0]
+
+	downloadPageURL := downloadURL + "?md5=" + book.MD5
+
+	doc, err := getDocument(downloadPageURL)
+	if err != nil {
+		return DownloadInfo{}, nil
+	}
+
+	//select the GET button of the page
+	link, _ := doc.Find("#main > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > a:nth-child(1)").Attr("href")
+	return DownloadInfo{
+		ID:              bookID,
+		Title:           book.Title,
+		DownloadPageURL: downloadPageURL,
+		DowloadLink:     link,
+	}, nil
+}
+
 //scrapBookIdsFromSite loads the page of given url (libgen.is) and gets all the ids from the table
 func scrapBookIdsFromSite(requestURL string) []int64 {
 	doc, err := getDocument(requestURL)
@@ -111,7 +146,7 @@ func scrapBookIdsFromSite(requestURL string) []int64 {
 	return ids
 }
 
-//returns goquery.Document build from given url
+//returns goquery.Document built from given url
 func getDocument(requestURL string) (*goquery.Document, error) {
 	res, err := http.Get(requestURL)
 	if err != nil {

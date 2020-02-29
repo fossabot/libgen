@@ -37,5 +37,5 @@ type BookInfo struct {
 	TimeLastModified string `json:"timelastmodified"` //—the date/time when the text’s entry in the database was edited, formatted as YYYY-MM-DD HH:MM:SS
 	Coverurl         string `json:"coverurl"`         //—the path to the cover image for the text: the filename followed by a lowercase letter (there’s a function to determine the letter for each cover, but I don’t know enough PHP to understand it).
 
-	DownloadLink string
+	DownloadPageUrl string
 }
