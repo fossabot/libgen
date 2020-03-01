@@ -1,5 +1,6 @@
 package libgen
 
+//BookInfo is model to map with resources on libgen
 type BookInfo struct {
 	ID               int64  `json:"id,string"`        //—the LibGen ID
 	Title            string `json:"title"`            //—the title of the text
@@ -38,4 +39,19 @@ type BookInfo struct {
 	Coverurl         string `json:"coverurl"`         //—the path to the cover image for the text: the filename followed by a lowercase letter (there’s a function to determine the letter for each cover, but I don’t know enough PHP to understand it).
 
 	DownloadPageURL string
+}
+
+//DownloadInfo contains the info to download a book
+type DownloadInfo struct {
+	ID              int64
+	Title           string
+	DownloadPageURL string
+	DowloadLink     string
+}
+
+//SearchOptions contains the search query, filters and search options
+type SearchOptions struct {
+	Query    string
+	SortBy   string
+	SortMode string
 }

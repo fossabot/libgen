@@ -15,7 +15,7 @@ import (
 
 const baseURL = "http://libgen.is/"
 
-const searchURL = baseURL + "search.php?lg_topic=libgen&open=0&view=simple&res=100&phrase=1&column=def&"
+const searchURL = baseURL + "search.php?lg_topic=libgen&open=0&res=25&view=simple&phrase=1&column=def&"
 
 const jsonURL = baseURL + "json.php"
 
@@ -30,18 +30,17 @@ const (
 //using mirror2 for now
 const downloadURL = mirror2 + "ads.php"
 
-type SortOptions struct {
-	SortBy   string
-	SortMode string
-}
-
-//SearchBookByTitle returns the list of BookInfo which contains the search string
-func SearchBookByTitle(searchStr string, sortOptions SortOptions) ([]BookInfo, error) {
-	sortBy := sortOptions.SortBy
-	sortMode := strings.ToUpper(sortOptions.SortMode)
+//Search returns the list of BookInfo
+func Search(searchOptions SearchOptions) ([]BookInfo, error) {
+	sortBy := searchOptions.SortBy
+	sortMode := strings.ToUpper(searchOptions.SortMode)
 
 	// URL encode given search string
-	values := url.Values{"req": {searchStr}, "sort": {sortBy}, "sortmode": {sortMode}}
+	values := url.Values{
+		"req":      {searchOptions.Query},
+		"sort":     {sortBy},
+		"sortmode": {sortMode},
+	}
 	requestURL := searchURL + values.Encode()
 
 	ids, err := scrapBookIdsFromPage(requestURL)
@@ -73,6 +72,7 @@ func SearchBookByTitle(searchStr string, sortOptions SortOptions) ([]BookInfo, e
 	return sortedBooks, nil
 }
 
+//FindBooksByIds returns the books with given ids
 func FindBooksByIds(ids []int64) ([]BookInfo, error) {
 	if len(ids) == 0 {
 		return []BookInfo{}, nil
@@ -105,6 +105,7 @@ func FindBooksByIds(ids []int64) ([]BookInfo, error) {
 	return books, nil
 }
 
+//GetDownloadInfo returns the download info of a book for given ID
 func GetDownloadInfo(bookID int64) (DownloadInfo, error) {
 	books, err := FindBooksByIds([]int64{bookID})
 
