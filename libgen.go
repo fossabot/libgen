@@ -15,13 +15,20 @@ import (
 
 const baseURL = "http://libgen.is/"
 
-const mirror2BaseURL = "http://libgen.lc/"
-
 const searchURL = baseURL + "search.php?lg_topic=libgen&open=0&view=simple&res=100&phrase=1&column=def&"
 
 const jsonURL = baseURL + "json.php"
 
-const downloadURL = mirror2BaseURL + "ads.php"
+const (
+	mirror1 = "http://93.174.95.29/"
+	mirror2 = "http://libgen.lc/"
+	mirror3 = "http://libgen.pw/"
+	mirror4 = "http://b-ok.org/"
+	mirror5 = "http://bookfi.net/"
+)
+
+//using mirror2 for now
+const downloadURL = mirror2 + "ads.php"
 
 type SortOptions struct {
 	SortBy   string
@@ -37,15 +44,18 @@ func SearchBookByTitle(searchStr string, sortOptions SortOptions) ([]BookInfo, e
 	values := url.Values{"req": {searchStr}, "sort": {sortBy}, "sortmode": {sortMode}}
 	requestURL := searchURL + values.Encode()
 
-	ids := scrapBookIdsFromSite(requestURL)
-	books, err := FindBooksByIds(ids)
+	ids, err := scrapBookIdsFromPage(requestURL)
+	if err != nil {
+		return []BookInfo{}, err
+	}
 
+	books, err := FindBooksByIds(ids)
 	if err != nil {
 		return []BookInfo{}, err
 	}
 
 	for i, book := range books {
-		books[i].DownloadPageUrl = downloadURL + "?md5=" + book.MD5
+		books[i].DownloadPageURL = downloadURL + "?md5=" + book.MD5
 	}
 
 	//find books by id always returns the result sorted by ID in asc
@@ -70,7 +80,6 @@ func FindBooksByIds(ids []int64) ([]BookInfo, error) {
 
 	idsCSV := listToCSV(ids)
 
-	fmt.Println("ids: " + idsCSV)
 	params := url.Values{"ids": {idsCSV}, "fields": {"*"}}
 
 	requestURL := jsonURL + "?" + params.Encode()
@@ -111,13 +120,9 @@ func GetDownloadInfo(bookID int64) (DownloadInfo, error) {
 
 	downloadPageURL := downloadURL + "?md5=" + book.MD5
 
-	doc, err := getDocument(downloadPageURL)
-	if err != nil {
-		return DownloadInfo{}, nil
-	}
+	link, _ := getDownloadLinkFromMirror2(downloadPageURL)
+	//TODO: on error try to fetch from other mirrors
 
-	//select the GET button of the page
-	link, _ := doc.Find("#main > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > a:nth-child(1)").Attr("href")
 	return DownloadInfo{
 		ID:              bookID,
 		Title:           book.Title,
@@ -127,10 +132,10 @@ func GetDownloadInfo(bookID int64) (DownloadInfo, error) {
 }
 
 //scrapBookIdsFromSite loads the page of given url (libgen.is) and gets all the ids from the table
-func scrapBookIdsFromSite(requestURL string) []int64 {
+func scrapBookIdsFromPage(requestURL string) ([]int64, error) {
 	doc, err := getDocument(requestURL)
 	if err != nil {
-		log.Fatal(err)
+		return []int64{}, err
 	}
 
 	var ids []int64
@@ -143,5 +148,21 @@ func scrapBookIdsFromSite(requestURL string) []int64 {
 		}
 	})
 
-	return ids
+	return ids, nil
+}
+
+func getDownloadLinkFromMirror2(downloadPageURL string) (string, error) {
+	doc, err := getDocument(downloadPageURL)
+	if err != nil {
+		return "", err
+	}
+
+	//select the GET button of the page
+	link, exists := doc.Find("#main > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > a:nth-child(1)").Attr("href")
+
+	if exists {
+		return link, nil
+	}
+
+	return "", errors.New("couldn't find the attr value for the selection")
 }
